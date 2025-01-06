@@ -140,30 +140,31 @@ html = """
 
             if (socket) socket.close();
             socket = new WebSocket(`ws://localhost:8000/messages/ws/${chatId}`);
-socket.onmessage = (event) => {
-    console.log("New message received:", event.data);
+            socket.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                console.log("New message received:", event.data);
 
-    if (!event.data) {
-        console.warn("Received empty message");
-        return;
-    }
+                if (!event.data) {
+                    console.warn("Received empty message");
+                    return;
+                }
 
-    try {
-        const data = JSON.parse(event.data);
+                try {
+                    const data = JSON.parse(event.data);
 
-        if (!data.sender_id || !data.content) {
-            console.warn("Invalid message format:", data);
-            return;
-        }
+                    if (!data.sender_id || !data.content) {
+                        console.warn("Invalid message format:", data);
+                        return;
+                    }
 
-        const div = document.createElement("div");
-        div.textContent = `${data.sender_id}: ${data.content}`;
-        messagesDiv.appendChild(div);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight; // Автопрокрутка вниз
-    } catch (error) {
-        console.error("Failed to parse WebSocket message:", event.data, error);
-    }
-};
+                    const div = document.createElement("div");
+                    div.textContent = `${data.sender_id}: ${data.content}`;
+                    messagesDiv.appendChild(div);
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight; // Автопрокрутка вниз
+                } catch (error) {
+                    console.error("Failed to parse WebSocket message:", event.data, error);
+                }
+            };
 
             document.getElementById("send-message-btn").onclick = async () => {
                 const content = document.getElementById("message-input").value;
