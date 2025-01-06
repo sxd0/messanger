@@ -134,35 +134,26 @@ html = """
             const messages = await response.json();
             messages.forEach(msg => {
                 const div = document.createElement("div");
-                div.textContent = `${msg.sender_id}: ${msg.content}`;
+                div.textContent = `${msg.sender_name || "Unknown"}: ${msg.content || "[No content]"}`;
                 messagesDiv.appendChild(div);
             });
 
             if (socket) socket.close();
             socket = new WebSocket(`ws://localhost:8000/messages/ws/${chatId}`);
             socket.onmessage = (event) => {
-                const message = JSON.parse(event.data);
-                console.log("New message received:", event.data);
-
-                if (!event.data) {
-                    console.warn("Received empty message");
-                    return;
-                }
-
                 try {
-                    const data = JSON.parse(event.data);
-
-                    if (!data.sender_id || !data.content) {
-                        console.warn("Invalid message format:", data);
+                    const message = JSON.parse(event.data);
+                    if (!message.sender_name || !message.content) {
+                        console.warn("Invalid message format:", message);
                         return;
                     }
 
                     const div = document.createElement("div");
-                    div.textContent = `${data.sender_id}: ${data.content}`;
+                    div.textContent = `${message.sender_name}: ${message.content}`;
                     messagesDiv.appendChild(div);
-                    messagesDiv.scrollTop = messagesDiv.scrollHeight; // Автопрокрутка вниз
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight; // Scroll to bottom
                 } catch (error) {
-                    console.error("Failed to parse WebSocket message:", event.data, error);
+                    console.error("Failed to process incoming WebSocket message:", error);
                 }
             };
 
@@ -188,6 +179,7 @@ html = """
     </script>
 </body>
 </html>
+
 """
 
 @app.get("/", response_class=HTMLResponse)
