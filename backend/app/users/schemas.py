@@ -12,8 +12,12 @@ class SUserRegister(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-
-
 class SUserLogin(BaseModel):
     email: EmailStr
     password: str
+
+    
+class SUser(BaseModel):
+    name: str
+    surname: str
+    created_at: datetime

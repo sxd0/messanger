@@ -1,9 +1,9 @@
 import json
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
-
+from fastapi.logger import logger
 from app.messages.dao import MessagesDAO
-from app.messages.models import Messages
+from app.messages.schemas import MessageRequest
 from app.users.dao import UsersDAO
 from app.users.dependencies import get_current_user
 from app.users.models import Users
@@ -39,11 +39,10 @@ async def get_messages(chat_id: int, current_user: Users = Depends(get_current_u
 # active_connections = {}
 
 # Ручка - отправка сообщения в определенном чате
-class MessageRequest(BaseModel):
-    content: str
 
 
-from fastapi.logger import logger
+
+
 
 @router.post("/{chat_id}/send")
 async def send_message(chat_id: int, request: MessageRequest, user=Depends(get_current_user)):

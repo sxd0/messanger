@@ -1,8 +1,10 @@
-from typing import List
+import logging
+from typing import Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from app.chats.dao import ChatsDAO, ParticipantsDAO
+from app.chats.schemas import SChats
 from app.users.dao import UsersDAO
 from app.users.dependencies import get_current_user
 from app.users.models import Users
@@ -14,14 +16,73 @@ router = APIRouter(
     tags=["Чаты"],
 )
 
-# Ручка - получение всех чатов пользователя (Нужно чтобы все чаты выводились слева)
-@router.get("")
-async def get_chats(user: Users = Depends(get_current_user)):
-    """Получение всех чатов для пользователя"""
-    participants = await ParticipantsDAO.find_all(user_id=user.id) # ищем все чаты в которых учавствовал юзер
-    chat_ids = [participant.chat_id for participant in participants] # список в котором все id чатов в которых есть наш юзер
-    chats = await ChatsDAO.find_all_for_list('id', chat_ids) # специальный метод который ищет все чаты в которых был юзер
-    return chats # вернули все чаты
+# Ручка - получение всех чатов пользователя (Нужно чтобы все чаты выводились слева) СДЕЛАТЬ ТАК ЧТОБЫ БЫЛО ИМЯ СОБЕСЕДНИКА
+# @router.get("")
+# async def get_chats(user: Users = Depends(get_current_user)):
+#     """Получение всех чатов для пользователя"""
+#     participants = await ParticipantsDAO.find_all(user_id=user.id) # ищем все чаты в которых учавствовал юзер
+#     chat_ids = [participant.chat_id for participant in participants] # список в котором все id чатов в которых есть наш юзер
+#     chats = await ChatsDAO.find_all_for_list('id', chat_ids) # специальный метод который ищет все чаты в которых был юзер
+#     chats_dict: list
+#     for i in chats: # Проходимся по чатам юзера чтобы выяснить что есть группа (i - это чат)
+#         if i.is_group == False: # Если чат не группа, тогда настроить реализацию так, чтобы выводилось имя собеседника
+#             for j in participants: # Идем по всей таблице участников в которой есть chat_id и user_id
+
+#     return chats # вернули все чаты
+
+# Как вариант сделать так, чтобы сначала выводились все словари вот так [{chat_id: [user_id, user_id]}, {chat_id: [user_id, user_id]}]
+# И потом уже перезаполнить этот массив именами
+# И потом уже сделать проверку, что если чат, тогда вывести то имя которые не является именем пользователя, а если группа, тогда все имена
+
+@router.get("/")
+async def get_chats(user: Users = Depends(get_current_user)) -> List[dict]:
+    """Получение всех чатов для пользователя."""
+    user_participants = await ParticipantsDAO.find_all(user_id=user.id)
+
+    chat_ids = [participant.chat_id for participant in user_participants]
+
+    # Если пользователь не состоит ни в одном чате, возвращаем пустой список.
+    if not chat_ids:
+        return []
+
+    chats = await ChatsDAO.find_all_for_list("id", chat_ids)
+
+    all_participants = await ParticipantsDAO.find_all_for_list("chat_id", chat_ids)
+
+    chats_dict: Dict[int, List[int]] = {}
+    for participant in all_participants:
+        if participant.chat_id not in chats_dict:
+            chats_dict[participant.chat_id] = []
+        chats_dict[participant.chat_id].append(participant.user_id)
+
+    for chat_id, user_ids in chats_dict.items():
+        user_names = await UsersDAO.find_names_by_ids(user_ids)
+        chats_dict[chat_id] = user_names
+    chat_details = []
+    for chat in chats:
+        participant_names = chats_dict.get(chat.id, [])
+
+        if chat.is_group:
+            # Для группового чата отображаем всех участников.
+            chat_details.append({
+                "chat_id": chat.id,
+                "name": ", ".join(sorted(participant_names))  # Участники по алфавиту
+            })
+        else:
+            # Для личного чата ищем имя собеседника.
+            other_user_name = next(
+                (name for name in participant_names if name != user.name),
+                None
+            )
+            if other_user_name:
+                chat_details.append({
+                    "chat_id": chat.id,
+                    "name": other_user_name
+                })
+
+    return chat_details
+
+
 
 # Ручка - создание чата для двух пользователей (По нажамтию на профиль другого пользователя)
 @router.post("/add")

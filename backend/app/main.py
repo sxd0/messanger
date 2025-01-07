@@ -50,6 +50,7 @@ html = """
         ul { list-style: none; padding: 0; }
         li { margin: 5px 0; cursor: pointer; }
         #messages { border: 1px solid #ddd; padding: 10px; height: 200px; overflow-y: auto; }
+        #chat-window { border: 1px solid #ccc; padding: 10px; max-height: 400px; overflow-y: auto; }
     </style>
 </head>
 <body>
@@ -106,7 +107,7 @@ html = """
             chats.forEach(chat => {
                 const li = document.createElement("li");
                 li.textContent = chat.name;
-                li.onclick = () => openChat(chat.id);
+                li.onclick = () => openChat(chat.chat_id);
                 chatList.appendChild(li);
             });
         }
@@ -179,7 +180,6 @@ html = """
     </script>
 </body>
 </html>
-
 """
 
 @app.get("/", response_class=HTMLResponse)

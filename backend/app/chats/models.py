@@ -8,8 +8,6 @@ class Chats(Base):
     __tablename__ = "chats"
 
     id = Column(Integer, primary_key=True, nullable=False, autoincrement=True)
-    name = Column(String, nullable=False)
-    second_name = Column(String, nullable=False) #
     is_group = Column(Boolean, nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)

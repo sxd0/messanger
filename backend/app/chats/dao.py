@@ -14,5 +14,12 @@ class ChatsDAO(BaseDAO):
             result = await session.execute(query)
             return result.scalars().first()
 
+    @classmethod
+    async def final_name_for_chat(cls, user_id: int):
+        async with async_session_maker() as session:
+            query = select(cls.model).filter_by(id=user_id)
+
 class ParticipantsDAO(BaseDAO):
     model = Participants
+
+    

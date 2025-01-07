@@ -22,8 +22,8 @@ INSERT INTO users (email, hashed_password, name, surname, created_at) VALUES
 ('user4@example.com', '$2b$12$YilkRmVCroPz6FTaUA7O5OyPkTWTTyYjbgU6GFdZMfQ1FW3IZ.IOO', 'Лох', 'НаВАйбе', CURRENT_TIMESTAMP);
 
 -- Добавление чатов
-INSERT INTO chats (name, second_name, is_group, created_by, created_at) VALUES
-('User1', 'User2', false, 1, CURRENT_TIMESTAMP);
+INSERT INTO chats (is_group, created_by, created_at) VALUES
+(false, 1, CURRENT_TIMESTAMP);
 
 -- Добавление участников
 INSERT INTO participants (chat_id, user_id) VALUES
