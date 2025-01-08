@@ -3,9 +3,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from sqladmin import Admin
+from app.admin.views import ChatsAdmin, MessagesAdmin, ParticipantsAdmin, RoleAdmin, UserAdmin
 from app.users.router import router as router_users
 from app.chats.router import router as router_chats
 from app.messages.router import router as router_messages
+from app.database import engine
+from app.admin.auth import authentication_backend
 
 
 app = FastAPI()
@@ -16,6 +20,10 @@ app = FastAPI()
 origins = [
     "http://localhost/5173"
 ]
+
+# origins = [
+#     '*'
+# ]
 
 app.add_middleware(
     CORSMiddleware,
@@ -338,3 +346,11 @@ async def get_html():
 app.include_router(router_users)
 app.include_router(router_chats)
 app.include_router(router_messages)
+
+admin = Admin(app, engine, authentication_backend=authentication_backend)
+
+admin.add_view(UserAdmin)
+admin.add_view(RoleAdmin)
+admin.add_view(ChatsAdmin)
+admin.add_view(ParticipantsAdmin)
+admin.add_view(MessagesAdmin)

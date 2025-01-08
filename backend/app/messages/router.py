@@ -81,7 +81,7 @@ async def websocket_endpoint(websocket: WebSocket, chat_id: str):
                 broadcast_message = {
                     "chat_id": chat_id,
                     "content": parsed_data["content"],
-                    "sender_id": parsed_data.get("sender_id", "unknown"),  # Используем fallback
+                    "sender_id": parsed_data.get("sender_id", "unknown"),
                 }
                 await manager.broadcast(json.dumps(broadcast_message))
                 logger.info(f"Broadcasted WebSocket message: {broadcast_message}")

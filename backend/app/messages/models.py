@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import ARRAY, Boolean, Column, Date, DateTime, ForeignKey, Integer, String
 from app.database import Base
-
+from sqlalchemy.orm import relationship
 
 
 class Messages(Base):
@@ -14,7 +14,8 @@ class Messages(Base):
     is_read = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-
+    chat = relationship("Chats", back_populates="messages")
+    sender = relationship("Users", back_populates="messages")
 
 class Requests(Base):
     __tablename__ = "requests"
