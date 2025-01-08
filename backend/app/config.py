@@ -1,3 +1,4 @@
+from pydantic import ConfigDict, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -16,7 +17,10 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str
 
-    class Config:
-        env_file = ".env"
+    model_config = ConfigDict(env_file=".env")
+
+    @model_validator(mode='before')
+    def validate_environment(cls, values):
+        return values
 
 settings = Settings()

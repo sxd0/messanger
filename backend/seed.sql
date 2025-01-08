@@ -23,12 +23,16 @@ INSERT INTO users (email, hashed_password, name, surname, created_at) VALUES
 
 -- Добавление чатов
 INSERT INTO chats (is_group, created_by, created_at) VALUES
-(false, 1, CURRENT_TIMESTAMP);
+(false, 1, CURRENT_TIMESTAMP),
+(True, 1, CURRENT_TIMESTAMP);
 
 -- Добавление участников
 INSERT INTO participants (chat_id, user_id) VALUES
 (1, 1),
-(1, 2);
+(1, 2),
+(2, 1),
+(2, 2),
+(2, 3);
 
 -- Добавление сообщений
 INSERT INTO messages (chat_id, sender_id, text, is_read, created_at) VALUES
