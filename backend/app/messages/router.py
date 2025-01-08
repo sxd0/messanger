@@ -36,14 +36,7 @@ async def get_messages(chat_id: int, current_user: Users = Depends(get_current_u
     return messages_with_senders
 
 
-# active_connections = {}
-
 # Ручка - отправка сообщения в определенном чате
-
-
-
-
-
 @router.post("/{chat_id}/send")
 async def send_message(chat_id: int, request: MessageRequest, user=Depends(get_current_user)):
     logger.info(f"Received message: {request.content}")
@@ -100,18 +93,3 @@ async def websocket_endpoint(websocket: WebSocket, chat_id: str):
         manager.disconnect(chat_id)
 
 
-
-
-
-
-"""
-Сообщения
-Отправка сообщения:
-
-POST /messages/
-Указать chat_id, текст, отправителя.
-Отправлять сообщение через WebSocket.
-Получение сообщений чата:
-
-GET /messages/?chat_id=<id>
-"""

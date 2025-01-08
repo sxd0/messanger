@@ -4,22 +4,19 @@ from app.dao.base import BaseDAO
 from app.database import async_session_maker
 
 
-class ChatsDAO(BaseDAO):
+class ChatsDAO(BaseDAO): # Изучить
     model = Chats
 
     @classmethod
-    async def find_last_created_chat(cls, user_id: int):
+    async def add(cls, is_group: bool, created_by: int):
         async with async_session_maker() as session:
-            query = select(cls.model).filter_by(created_by=user_id).order_by(cls.model.created_at.desc()).limit(1)
-            result = await session.execute(query)
-            return result.scalars().first()
+            new_chat = cls.model(is_group=is_group, created_by=created_by)
+            session.add(new_chat)
+            await session.commit()
+            await session.refresh(new_chat)
+            return new_chat.id
 
-    @classmethod
-    async def final_name_for_chat(cls, user_id: int):
-        async with async_session_maker() as session:
-            query = select(cls.model).filter_by(id=user_id)
 
 class ParticipantsDAO(BaseDAO):
     model = Participants
 
-    

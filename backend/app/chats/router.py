@@ -102,29 +102,27 @@ async def create_chat(second_user: int, user: Users = Depends(get_current_user))
         if chat.chat_id in chat_ids:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chat already exists with this user.")
     
-    second_name = (await UsersDAO.find_one_or_none(id=second_user)).name # Поиск второго юзера для названия чата
+    # second_name = (await UsersDAO.find_one_or_none(id=second_user)).name # Поиск второго юзера для названия чата
     # Если чат не существует, создаем новый чат
-    await ChatsDAO.add(name=user.name, second_name=second_name, is_group=False, created_by=user.id)
-    
+    new_chat_id = await ChatsDAO.add(is_group=False, created_by=user.id)
+    print(new_chat_id)
     # Получаем ID последнего созданного чата для текущего пользователя
-    last_chat = await ChatsDAO.find_last_created_chat(user_id=user.id)
+    # last_chat = await ChatsDAO.find_last_created_chat(user_id=user.id)
     
-    if not last_chat:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve the created chat.")
-    
+    # if not last_chat:
+    #     raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve the created chat.")
+    # print(last_chat)
     # Добавляем участников в новый чат
-    await ParticipantsDAO.add(user_id=user.id, chat_id=last_chat.id)
-    await ParticipantsDAO.add(user_id=second_user, chat_id=last_chat.id)
+    await ParticipantsDAO.add(user_id=user.id, chat_id=new_chat_id)
+    await ParticipantsDAO.add(user_id=second_user, chat_id=new_chat_id)
     
-    return last_chat # возвращаем новый чат
+    return {"chat_id": new_chat_id} # возвращаем новый чат
+
+
 
 # Ручка - создание чата группы (пользователь может выбрать профили юзеров с которыми хочет создать чат)
-class CreateGroupRequest(BaseModel):
-    user_ids: List[int]
-    group_name: str
-
 @router.post("/create_group")
-async def create_group(request: CreateGroupRequest, user: Users = Depends(get_current_user)):
+async def create_group(user_ids: List[int], user: Users = Depends(get_current_user)):
     """Создать группу"""
 
     # Получаем все чаты текущего пользователя
@@ -134,37 +132,29 @@ async def create_group(request: CreateGroupRequest, user: Users = Depends(get_cu
     chat_ids = [record.chat_id for record in participant_records]
 
     # Проверяем, есть ли уже группа с такими же участниками
-    for user_id in request.user_ids:
-        existing_chats = await ParticipantsDAO.find_all(user_id=user_id)
-        for chat in existing_chats:
+    chats_all_user = [user.id, *user_ids] # Содержит в себе всех желаемых участников
+    chats_all_test = [user.id] # список для сверки с нашим id пользователя
+    for user_id in user_ids: # идем по списку с участниками
+        existing_chats = await ParticipantsDAO.find_all(user_id=user_id) # список из словарей со строчками участников
+        for chat in existing_chats: # сами словари из списка выше
             if chat.chat_id in chat_ids:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Group already exists with these users.")
+                chats_all_test.append(chat.chat_id) # Добавляем все чаты 
+    if chats_all_test == chats_all_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Group already exists with these users.")
 
     # Если группа не существует, создаем новую группу
-    await ChatsDAO.add(name=request.group_name, is_group=True, created_by=user.id)
+    new_chat_id = await ChatsDAO.add(is_group=True, created_by=user.id)
 
     # Получаем ID последней созданной группы для текущего пользователя
-    last_chat = await ChatsDAO.find_last_created_chat(user_id=user.id)
+    # last_chat = await ChatsDAO.find_last_created_chat(user_id=user.id)
 
-    if not last_chat:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve the created group.")
-
+    # if not last_chat:
+    #     raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve the created group.")
+    
     # Добавляем участников в новую группу
-    await ParticipantsDAO.add(user_id=user.id, chat_id=last_chat.id)
-    for user_id in request.user_ids:
-        await ParticipantsDAO.add(user_id=user_id, chat_id=last_chat.id)
+    await ParticipantsDAO.add(user_id=user.id, chat_id=new_chat_id)
+    for user_id in user_ids:
+        await ParticipantsDAO.add(user_id=user_id, chat_id=new_chat_id)
 
-    return last_chat  # возвращаем новую группу
+    return {"chat_id": new_chat_id} # возвращаем новую группу
 
-"""
-Чаты
-Создание чата:
-
-POST /chats/
-Указать ID участников.
-Если чат не групповой, проверять существование уже созданного чата между этими пользователями.
-Получение списка чатов:
-
-GET /chats/
-Возвращать чаты, где пользователь является участником.
-"""
