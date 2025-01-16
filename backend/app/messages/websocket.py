@@ -48,6 +48,7 @@ from app.users.dependencies import get_current_user
 # manager = ConnectionManager()
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 class ConnectionManager:
     def __init__(self):
@@ -66,13 +67,32 @@ class ConnectionManager:
         logger.info(f"WebSocket disconnected for client ID: {client_id}. Active connections: {self.active_connections}")
 
     async def broadcast(self, message: str):
-        logger.info(f"Broadcasting message: {message}")
+        logger.info(f"Broadcasting message to {len(self.active_connections)} clients: {message}")
         for client_id, connections in self.active_connections.items():
             for connection in connections:
                 try:
                     await connection.send_text(message)
+                    logger.debug(f"Message sent to client {client_id}")
                 except Exception as e:
                     logger.error(f"Error broadcasting message to client {client_id}: {e}")
+                    connections.remove(connection)
+                    if not connections:
+                        del self.active_connections[client_id]
+                        logger.warning(f"Removed inactive connection for client {client_id}")
+
+    async def send_personal_message(self, client_id: str, message: str):
+        if client_id in self.active_connections:
+            for connection in self.active_connections[client_id]:
+                try:
+                    await connection.send_text(message)
+                    logger.debug(f"Message sent to client {client_id}")
+                except Exception as e:
+                    logger.error(f"Error sending message to client {client_id}: {e}")
+                    self.active_connections[client_id].remove(connection)
+                    if not self.active_connections[client_id]:
+                        del self.active_connections[client_id]
+                        logger.warning(f"Removed inactive connection for client {client_id}")
+
 
 manager = ConnectionManager()
 

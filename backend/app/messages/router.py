@@ -1,9 +1,11 @@
 import json
+import logging
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from fastapi.logger import logger
+from app.chats.dao import ChatsDAO
 from app.messages.dao import MessagesDAO
-from app.messages.schemas import MessageRequest
+from app.messages.schemas import MessageRequest, WebSocketMessage
 from app.users.dao import UsersDAO
 from app.users.dependencies import get_current_user
 from app.users.models import Users
@@ -15,25 +17,17 @@ router = APIRouter(
     tags=["Сообщения"],
 )
 
+logging.basicConfig(level=logging.INFO)
+
 # Ручка - получение всех сообщений из чата (При выборе чата слева прогружаются все сообщения) Исправно
 @router.get("/{chat_id}")
 async def get_messages(chat_id: int, current_user: Users = Depends(get_current_user)):
-    """Получение всех сообщений в определенном чате"""
-    messages = await MessagesDAO.find_all(chat_id=chat_id)
-
-    # Дополняем сообщения именами отправителей
-    messages_with_senders = []
-    for message in messages:
-        sender = await UsersDAO.find_one_or_none(id=message.sender_id)  # Получаем данные пользователя
-        messages_with_senders.append({
-            "id": message.id,
-            "chat_id": message.chat_id,
-            "sender_id": message.sender_id,
-            "sender_name": sender.name if sender else "Unknown",
-            "content": message.text
-        })
-
-    return messages_with_senders
+    try:
+        # Используем DAO для получения сообщений с именами отправителей
+        messages = await MessagesDAO.find_all_with_senders(chat_id=chat_id)
+        return messages
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Ручка - отправка сообщения в определенном чате
@@ -43,21 +37,24 @@ async def send_message(chat_id: int, request: MessageRequest, user=Depends(get_c
     logger.info(f"User ID: {user.id}, Chat ID: {chat_id}")
 
     try:
-        # Сохраняем сообщение в базе данных
         message = await MessagesDAO.add(chat_id=chat_id, sender_id=user.id, text=request.content)
         logger.info(f"Message saved in DB: {message}")
 
-        # Формируем сообщение для отправки
-        broadcast_message = {
-            "chat_id": chat_id,
-            "sender_id": user.id,
-            "content": request.content,
-            "sender_name": user.name,  # Добавляем имя пользователя
-        }
-        await manager.broadcast(json.dumps(broadcast_message))
-        logger.info(f"Broadcasted message: {broadcast_message}")
+        broadcast_message = WebSocketMessage(
+            chat_id=chat_id,
+            sender_id=user.id,
+            content=request.content,
+            sender_name=user.name,
+        ).model_dump() 
 
-        return broadcast_message  # Возвращаем те же данные, что отправляем через WebSocket
+        chat = await ChatsDAO.find_one_or_none(id=chat_id)
+        if chat.is_group:
+            await manager.broadcast(json.dumps(broadcast_message))
+        else:
+            await manager.send_personal_message(str(chat_id), json.dumps(broadcast_message))
+        logger.info(f"Message sent: {broadcast_message}")
+
+        return broadcast_message
     except Exception as e:
         logger.error(f"Error sending message: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send message")
@@ -74,15 +71,17 @@ async def websocket_endpoint(websocket: WebSocket, chat_id: str):
 
             try:
                 parsed_data = json.loads(data)
-                if not parsed_data.get("content"):
-                    logger.warning("Received invalid message format.")
-                    continue
+                try:
+                    broadcast_message = WebSocketMessage(
+                        chat_id=int(chat_id),
+                        content=parsed_data["content"],
+                        sender_id=parsed_data.get("sender_id"),
+                        sender_name=parsed_data.get("sender_name")
+                    ).model_dump()
+                except ValidationError as e:
+                    logger.warning(f"Invalid message format: {e}")
+                    continue 
 
-                broadcast_message = {
-                    "chat_id": chat_id,
-                    "content": parsed_data["content"],
-                    "sender_id": parsed_data.get("sender_id", "unknown"),
-                }
                 await manager.broadcast(json.dumps(broadcast_message))
                 logger.info(f"Broadcasted WebSocket message: {broadcast_message}")
 

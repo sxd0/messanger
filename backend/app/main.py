@@ -1,5 +1,6 @@
+import time
 import uuid
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -10,6 +11,7 @@ from app.chats.router import router as router_chats
 from app.messages.router import router as router_messages
 from app.database import engine
 from app.admin.auth import authentication_backend
+from app.logger import logger
 
 
 app = FastAPI()
@@ -33,6 +35,16 @@ app.add_middleware(
     allow_headers=["Content-Type", "Set-Cookie", "Access-Control-Allow-Headers",
                     "Access-Control-Allow-Origin", "Authorization"]
 )
+
+# @app.middleware("http")
+# async def add_process_time_header(request: Request, call_next):
+#     start_time = time.perf_counter()
+#     response = await call_next(request)
+#     process_time = time.perf_counter() - start_time
+#     logger.info("Request execution time", extra={
+#         "process_time": round(process_time, 4)
+#     })
+#     return response
 
 # Все что ниже тестирование
 
@@ -285,11 +297,18 @@ html = """ # email: user1@example.com pass: 123; email: user2@example.com pass: 
             const messagesDiv = document.getElementById("messages");
             messagesDiv.innerHTML = "";
 
+            // Загружаем сообщения
             const response = await fetch(`/messages/${chatId}`);
+            if (!response.ok) {
+                console.error("Failed to load messages:", response.statusText);
+                return;
+            }
+
             const messages = await response.json();
             messages.forEach(msg => {
                 const div = document.createElement("div");
-                div.textContent = `${msg.sender_name || "Unknown"}: ${msg.content || "[No content]"}`;
+                // Используем поле "text" вместо "content"
+                div.textContent = `${msg.sender_name || "Unknown"}: ${msg.text || "[No content]"}`;
                 messagesDiv.appendChild(div);
             });
 
