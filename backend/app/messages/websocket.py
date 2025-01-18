@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, List
 from fastapi import Depends, WebSocket, WebSocketDisconnect
+from fastapi.websockets import WebSocketState
 
 from app.users.dependencies import get_current_user
 
@@ -63,8 +64,13 @@ class ConnectionManager:
 
     def disconnect(self, client_id: str):
         if client_id in self.active_connections:
-            del self.active_connections[client_id]
-        logger.info(f"WebSocket disconnected for client ID: {client_id}. Active connections: {self.active_connections}")
+            self.active_connections[client_id] = [
+                conn for conn in self.active_connections[client_id]
+                if conn.client_state != WebSocketState.DISCONNECTED
+            ]
+            if not self.active_connections[client_id]:
+                del self.active_connections[client_id]
+            logger.info(f"WebSocket disconnected for client ID: {client_id}. Active connections: {self.active_connections}")
 
     async def broadcast(self, message: str):
         logger.info(f"Broadcasting message to {len(self.active_connections)} clients: {message}")

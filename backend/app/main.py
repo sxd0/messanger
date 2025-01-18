@@ -291,57 +291,60 @@ html = """ # email: user1@example.com pass: 123; email: user2@example.com pass: 
             });
         }
 
-        async function openChat(chatId) {
-            const chatWindow = document.getElementById("chat-window");
-            chatWindow.classList.remove("hidden");
-            const messagesDiv = document.getElementById("messages");
-            messagesDiv.innerHTML = "";
+async function openChat(chatId) {
+    const chatWindow = document.getElementById("chat-window");
+    chatWindow.classList.remove("hidden");
+    const messagesDiv = document.getElementById("messages");
+    messagesDiv.innerHTML = "";
 
-            // Загружаем сообщения
-            const response = await fetch(`/messages/${chatId}`);
-            if (!response.ok) {
-                console.error("Failed to load messages:", response.statusText);
+    // Закрываем существующее соединение, если оно есть
+    if (socket) {
+        socket.close();
+    }
+
+    // Загружаем сообщения
+    const response = await fetch(`/messages/${chatId}`);
+    if (!response.ok) {
+        console.error("Failed to load messages:", response.statusText);
+        return;
+    }
+
+    const messages = await response.json();
+    messages.forEach(msg => {
+        const div = document.createElement("div");
+        div.textContent = `${msg.sender_name || "Unknown"}: ${msg.text || "[No content]"}`;
+        messagesDiv.appendChild(div);
+    });
+
+    // Создаем новое соединение
+    socket = new WebSocket(`ws://localhost:8080/messages/ws/${chatId}`);
+    socket.onmessage = (event) => {
+        try {
+            const message = JSON.parse(event.data);
+            if (!message.sender_name || !message.content) {
+                console.warn("Invalid message format:", message);
                 return;
             }
 
-            const messages = await response.json();
-            messages.forEach(msg => {
-                const div = document.createElement("div");
-                // Используем поле "text" вместо "content"
-                div.textContent = `${msg.sender_name || "Unknown"}: ${msg.text || "[No content]"}`;
-                messagesDiv.appendChild(div);
-            });
-
-            if (socket) socket.close();
-            socket = new WebSocket(`ws://localhost:8080/messages/ws/${chatId}`);
-            socket.onmessage = (event) => {
-                try {
-                    const message = JSON.parse(event.data);
-                    if (!message.sender_name || !message.content) {
-                        console.warn("Invalid message format:", message);
-                        return;
-                    }
-
-                    const div = document.createElement("div");
-                    div.textContent = `${message.sender_name}: ${message.content}`;
-                    messagesDiv.appendChild(div);
-                    messagesDiv.scrollTop = messagesDiv.scrollHeight; // Scroll to bottom
-                } catch (error) {
-                    console.error("Failed to process incoming WebSocket message:", error);
-                }
-            };
-
-            document.getElementById("send-message-btn").onclick = async () => {
-                const content = document.getElementById("message-input").value;
-                await fetch(`/messages/${chatId}/send`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ content })
-                });
-                document.getElementById("message-input").value = "";
-            };
+            const div = document.createElement("div");
+            div.textContent = `${message.sender_name}: ${message.content}`;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight; // Scroll to bottom
+        } catch (error) {
+            console.error("Failed to process incoming WebSocket message:", error);
         }
+    };
 
+    document.getElementById("send-message-btn").onclick = async () => {
+        const content = document.getElementById("message-input").value;
+        await fetch(`/messages/${chatId}/send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content })
+        });
+        document.getElementById("message-input").value = "";
+    };
+}
         async function createChat(userId) {
             const response = await fetch("/chats/add", {
                 method: "POST",
